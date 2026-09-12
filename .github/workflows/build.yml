@@ -1,0 +1,84 @@
+name: Build Mini Party Fun APK
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Locate and unzip Mini Party Fun.zip
+        run: |
+          set -e
+          ZIP_PATH=$(find "$GITHUB_WORKSPACE" -iname "Mini Party Fun.zip" -print -quit)
+          if [ -z "$ZIP_PATH" ]; then
+            echo "ERROR: Could not find 'Mini Party Fun.zip' anywhere in the repository."
+            exit 1
+          fi
+          echo "Found zip at: $ZIP_PATH"
+          mkdir -p "$GITHUB_WORKSPACE/extracted"
+          unzip -o "$ZIP_PATH" -d "$GITHUB_WORKSPACE/extracted"
+          echo "Extracted contents:"
+          find "$GITHUB_WORKSPACE/extracted" -maxdepth 3
+
+      - name: Locate Android project root (folder containing settings.gradle)
+        id: findproject
+        run: |
+          set -e
+          PROJECT_DIR=$(find "$GITHUB_WORKSPACE/extracted" -maxdepth 4 -iname "settings.gradle*" -print -quit | xargs -r dirname)
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "ERROR: Could not find settings.gradle inside the extracted zip."
+            exit 1
+          fi
+          echo "Project root: $PROJECT_DIR"
+          echo "project_dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Grant execute permission for gradlew (if present)
+        working-directory: ${{ steps.findproject.outputs.project_dir }}
+        run: |
+          if [ -f "./gradlew" ]; then
+            chmod +x ./gradlew
+          fi
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: 8.7
+
+      - name: Build debug APK
+        working-directory: ${{ steps.findproject.outputs.project_dir }}
+        run: |
+          if [ -f "./gradlew" ]; then
+            ./gradlew assembleDebug --stacktrace --no-daemon
+          else
+            gradle assembleDebug --stacktrace --no-daemon
+          fi
+
+      - name: Locate built APK
+        id: findapk
+        working-directory: ${{ steps.findproject.outputs.project_dir }}
+        run: |
+          APK_PATH=$(find . -iname "*.apk" -path "*debug*" -print -quit)
+          echo "Found APK: $APK_PATH"
+          echo "apk_path=$APK_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MiniPartyFun-debug-apk
+          path: ${{ steps.findproject.outputs.project_dir }}/${{ steps.findapk.outputs.apk_path }}
+          if-no-files-found: error
