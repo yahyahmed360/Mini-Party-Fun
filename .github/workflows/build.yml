@@ -72,7 +72,12 @@ jobs:
         id: findapk
         working-directory: ${{ steps.findproject.outputs.project_dir }}
         run: |
-          APK_PATH=$(find . -iname "*.apk" -path "*debug*" -print -quit)
+          set -e
+          APK_PATH=$(find "$PWD" -iname "*.apk" -path "*debug*" -print -quit)
+          if [ -z "$APK_PATH" ]; then
+            echo "ERROR: No debug APK was found after the build."
+            exit 1
+          fi
           echo "Found APK: $APK_PATH"
           echo "apk_path=$APK_PATH" >> "$GITHUB_OUTPUT"
 
@@ -80,5 +85,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: MiniPartyFun-debug-apk
-          path: ${{ steps.findproject.outputs.project_dir }}/${{ steps.findapk.outputs.apk_path }}
+          path: ${{ steps.findapk.outputs.apk_path }}
           if-no-files-found: error
