@@ -45,12 +45,6 @@ jobs:
           java-version: '17'
 
       - name: Accept Android SDK licenses & install required components
-        # ubuntu-latest runners already ship with an Android SDK pre-installed
-        # (ANDROID_HOME/ANDROID_SDK_ROOT are already set). We deliberately do NOT
-        # use android-actions/setup-android here: that action tries to install the
-        # long-removed legacy "tools" package and fails with "Failed to find
-        # package 'tools'" on current SDK repositories. Using the runner's own
-        # SDK avoids that entirely.
         run: |
           set -e
           echo "ANDROID_HOME=$ANDROID_HOME"
@@ -80,9 +74,6 @@ jobs:
 
       - name: Build debug APK
         working-directory: ${{ steps.findproject.outputs.project_dir }}
-        # This combined project uses Jetpack Compose + Room (kapt) for the "Spin the
-        # Wheel" tab alongside plain Views/Fragments for "More" and "Settings" - all
-        # in one module, so a normal assembleDebug builds everything together.
         run: |
           if [ -f "./gradlew" ]; then
             ./gradlew assembleDebug --stacktrace --no-daemon
