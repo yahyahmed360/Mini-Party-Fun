@@ -23,13 +23,14 @@ jobs:
           echo "Found zip at: $ZIP_PATH"
           mkdir -p "$GITHUB_WORKSPACE/extracted"
           unzip -o "$ZIP_PATH" -d "$GITHUB_WORKSPACE/extracted"
+          echo "Extracted contents:"
+          find "$GITHUB_WORKSPACE/extracted" -maxdepth 3
 
       - name: Locate Android project root (folder containing settings.gradle)
         id: findproject
         run: |
           set -e
-          # Find the directory containing settings.gradle and cleanly remove any carriage returns or newlines
-          PROJECT_DIR=$(find "$GITHUB_WORKSPACE/extracted" -maxdepth 4 -iname "settings.gradle*" -print -quit | xargs -r dirname | tr -d '\r' | tr '\n' ' ' | xargs)
+          PROJECT_DIR=$(find "$GITHUB_WORKSPACE/extracted" -maxdepth 4 -iname "settings.gradle*" -print -quit | xargs -r dirname | tr -d '\r' | tr -d '\n')
           if [ -z "$PROJECT_DIR" ] || [ ! -d "$PROJECT_DIR" ]; then
             echo "ERROR: Could not find a valid project root containing settings.gradle."
             exit 1
@@ -85,7 +86,7 @@ jobs:
         working-directory: "${{ steps.findproject.outputs.project_dir }}"
         run: |
           set -e
-          APK_PATH=$(find "$PWD" -iname "*.apk" -path "*debug*" -print -quit)
+          APK_PATH=$(find "$PWD" -iname "*.apk" -path "*debug*" -print -quit | tr -d '\r' | tr -d '\n')
           if [ -z "$APK_PATH" ]; then
             echo "ERROR: No debug APK was found after the build."
             exit 1
