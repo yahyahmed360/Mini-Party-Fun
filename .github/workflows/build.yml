@@ -23,20 +23,17 @@ jobs:
           echo "Found zip at: $ZIP_PATH"
           mkdir -p "$GITHUB_WORKSPACE/extracted"
           unzip -o "$ZIP_PATH" -d "$GITHUB_WORKSPACE/extracted"
-          echo "Extracted contents:"
-          find "$GITHUB_WORKSPACE/extracted" -maxdepth 3
 
       - name: Locate Android project root (folder containing settings.gradle)
         id: findproject
         run: |
           set -e
-          RAW_DIR=$(find "$GITHUB_WORKSPACE/extracted" -maxdepth 4 -iname "settings.gradle*" -print -quit | xargs -r dirname)
-          if [ -z "$RAW_DIR" ]; then
-            echo "ERROR: Could not find settings.gradle inside the extracted zip."
+          # Find the directory containing settings.gradle and cleanly remove any carriage returns or newlines
+          PROJECT_DIR=$(find "$GITHUB_WORKSPACE/extracted" -maxdepth 4 -iname "settings.gradle*" -print -quit | xargs -r dirname | tr -d '\r' | tr '\n' ' ' | xargs)
+          if [ -z "$PROJECT_DIR" ] || [ ! -d "$PROJECT_DIR" ]; then
+            echo "ERROR: Could not find a valid project root containing settings.gradle."
             exit 1
           fi
-          # Clean up any trailing newlines or spaces caused by spaces in folder names
-          PROJECT_DIR=$(echo "$RAW_DIR" | tr -d '\r' | xargs)
           echo "Project root: $PROJECT_DIR"
           echo "project_dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
 
@@ -63,7 +60,7 @@ jobs:
           "$SDKMANAGER" "platform-tools" "platforms;android-34" "build-tools;34.0.0"
 
       - name: Grant execute permission for gradlew (if present)
-        working-directory: ${{ steps.findproject.outputs.project_dir }}
+        working-directory: "${{ steps.findproject.outputs.project_dir }}"
         run: |
           if [ -f "./gradlew" ]; then
             chmod +x ./gradlew
@@ -75,7 +72,7 @@ jobs:
           gradle-version: 8.7
 
       - name: Build debug APK
-        working-directory: ${{ steps.findproject.outputs.project_dir }}
+        working-directory: "${{ steps.findproject.outputs.project_dir }}"
         run: |
           if [ -f "./gradlew" ]; then
             ./gradlew assembleDebug --stacktrace --no-daemon
@@ -85,7 +82,7 @@ jobs:
 
       - name: Locate built APK
         id: findapk
-        working-directory: ${{ steps.findproject.outputs.project_dir }}
+        working-directory: "${{ steps.findproject.outputs.project_dir }}"
         run: |
           set -e
           APK_PATH=$(find "$PWD" -iname "*.apk" -path "*debug*" -print -quit)
