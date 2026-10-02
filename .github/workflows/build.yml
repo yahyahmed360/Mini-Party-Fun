@@ -30,11 +30,17 @@ jobs:
         id: findproject
         run: |
           set -e
-          PROJECT_DIR=$(find "$GITHUB_WORKSPACE/extracted" -maxdepth 4 -iname "settings.gradle*" -print -quit | xargs -r dirname | tr -d '\r' | tr -d '\n')
-          if [ -z "$PROJECT_DIR" ] || [ ! -d "$PROJECT_DIR" ]; then
-            echo "ERROR: Could not find a valid project root containing settings.gradle."
+          # 1. Find the file first
+          SETTINGS_FILE=$(find "$GITHUB_WORKSPACE/extracted" -maxdepth 4 -iname "settings.gradle*" -print -quit)
+          
+          if [ -z "$SETTINGS_FILE" ]; then
+            echo "ERROR: Could not find settings.gradle inside the extracted zip."
             exit 1
           fi
+          
+          # 2. Get the folder path safely (this handles spaces perfectly without splitting them)
+          PROJECT_DIR=$(dirname "$SETTINGS_FILE")
+          
           echo "Project root: $PROJECT_DIR"
           echo "project_dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
 
@@ -86,7 +92,7 @@ jobs:
         working-directory: "${{ steps.findproject.outputs.project_dir }}"
         run: |
           set -e
-          APK_PATH=$(find "$PWD" -iname "*.apk" -path "*debug*" -print -quit | tr -d '\r' | tr -d '\n')
+          APK_PATH=$(find "$PWD" -iname "*.apk" -path "*debug*" -print -quit)
           if [ -z "$APK_PATH" ]; then
             echo "ERROR: No debug APK was found after the build."
             exit 1
