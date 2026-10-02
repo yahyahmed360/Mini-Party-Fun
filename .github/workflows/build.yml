@@ -30,11 +30,13 @@ jobs:
         id: findproject
         run: |
           set -e
-          PROJECT_DIR=$(find "$GITHUB_WORKSPACE/extracted" -maxdepth 4 -iname "settings.gradle*" -print -quit | xargs -r dirname)
-          if [ -z "$PROJECT_DIR" ]; then
+          RAW_DIR=$(find "$GITHUB_WORKSPACE/extracted" -maxdepth 4 -iname "settings.gradle*" -print -quit | xargs -r dirname)
+          if [ -z "$RAW_DIR" ]; then
             echo "ERROR: Could not find settings.gradle inside the extracted zip."
             exit 1
           fi
+          # Clean up any trailing newlines or spaces caused by spaces in folder names
+          PROJECT_DIR=$(echo "$RAW_DIR" | tr -d '\r' | xargs)
           echo "Project root: $PROJECT_DIR"
           echo "project_dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
 
